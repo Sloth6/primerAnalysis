@@ -5,24 +5,9 @@ calculates the distributions of each primer. It can also produce a
 .has_primers.fastq file of all the sequence with the forward and reverse primer.
 """
 import re, json, sys
-# from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
-from Bio.Alphabet import generic_dna#, generic_protein
+from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
-
-class Primer(object):
-    """A single primer sequence"""
-    def __init__(self, seq, index, reverse=False):
-        if reverse:
-            self.index = 1
-            self.seq = str(Seq(seq, generic_dna).reverse_complement())
-        else:
-            self.seq = seq
-        self.frame = (index-1) % 3
-        self.stripped = seq[3 - self.frame:]
-
-    def __repr__(self):
-        return self.seq
 
 class PrimerGroup(object):
     """
@@ -30,10 +15,10 @@ class PrimerGroup(object):
     primer group if it contains any one of the forward primers and any one
     of the reverse primers.
     """
-    def __init__(self, primers):
-        self.forwards = self.make_all_primers(primers["forwards"])
-        self.reverses = [Primer(primers["reverses"][0],1, True)]
-        #self.make_all_primers(primers["reverses"], True)
+    def __init__(self, json_data):
+        self.forwards = self.make_all_primers(json_data["forwards"])
+        self.reverses = self.make_all_primers(json_data["reverses"], True)
+        self.name = json_data["name"]
         self.regex = self.make_regex()
 
     def make_all_primers(self, raw_primers, reverse=False):
@@ -43,19 +28,20 @@ class PrimerGroup(object):
             'K': ['G', 'T'], 'R': ['A', 'G'], 'Y': ['C', 'T']
         }
         primers = []
-        # primer_map = dict()
+        primer_map = dict()
         while len(raw_primers) > 0:
             had_degen = False
             raw_primer = raw_primers.pop(0)
-            for nt in raw_primer[0]:
+            for nt in raw_primer:
                 if nt in nt_map:
                     had_degen = True
                     for map_to in nt_map[nt]:
-                        toAdd = [raw_primer[0].replace(nt, map_to, 1),raw_primer[1]]
-                        raw_primers.append(toAdd)
+                        raw_primers.append(raw_primer.replace(nt, map_to, 1))
                     break
             if not had_degen:
-                primers.append(Primer(raw_primer[0], raw_primer[1], reverse))
+                if reverse:
+                    raw_primer = str(Seq(raw_primer, generic_dna).reverse_complement())
+                primers.append(raw_primer)
         return primers
 
     def make_regex(self):
@@ -64,12 +50,12 @@ class PrimerGroup(object):
         the forward primers before one of the reverse primerse somewhere in the
         sequence.
         """
-        forwards = self.forwards
-        re_string = '^.*((' + (')|('.join([f.seq for f in forwards])) + \
-            ')).*'+ str(self.reverses[0])+'.*$'
-        return re.compile(re_string)
+        forwards_str = ')|('.join(self.forwards)
+        reverses_str = ')|('.join(self.reverses)
+        re_str = '^.*((' + forwards_str +')).*((' + reverses_str + ')).*$'
+        return re.compile(re_str)
 
-    def forward_primer(self, seq):
+    def match(self, seq):
         """
         Confirm the sequence matched againsed our regular expression. If it
         does then return the forward primer that matched to it.
@@ -78,7 +64,7 @@ class PrimerGroup(object):
         if match:
             return match.group(1)
         else:
-            return None
+            return False
 
 # def encode_protein(seq, forward_primer, reverse_primer):
 #     """
@@ -99,37 +85,64 @@ class PrimerGroup(object):
     #     return None
     # print protein
 
-def process_seq(seq, primerGroup, primerCount):
-    forward_primer = primerGroup.forward_primer(seq)
-    # protein = encode_protein(seq, forward_primer, primerGroup.reverses[0])
-    if forward_primer:# and protein:
-        if forward_primer in primerCount:
-            primerCount[forward_primer] += 1
-        else:
-            primerCount[forward_primer] = 1
+def process_seq(seq, primer_groups, primer_count):
+    for p_group in primer_groups:
+        match = p_group.match(seq)
+        if p_group.name not in primer_count:
+            primer_count[p_group.name] = dict()
+        if match:
+            if match in primer_count[p_group.name]:
+                primer_count[p_group.name][match] += 1
+            else:
+                primer_count[p_group.name][match] = 1
+            return True
+    return False
 
-def calculate_primer_distribution(path, primerGroup):
-    """
-    Iterate all sequences and see if the match to the primer group.
-    If they do, record which forward primer.
-    """
-    primerCount = dict(zip(primerGroup.forwards, [0]*len(primerGroup.forwards)))
-    for _, seq, _ in FastqGeneralIterator(open(path)):
-        one_seq(seq, primerGroup, primerCount)
-    return primerCount
+
+def output(primer_count, total, matches):
+    print 'Total reads:', total
+    print "Reads with primers:", matches, "("+str(matches/float(total))+")"
+    print ""
+    for name, values in primer_count.iteritems():
+        print name
+        for forward, count in values.iteritems():
+            print '\t', forward, ':', count
+        print ''
+    print "#"*80
 
 def main(argv):
     """
-    Load the primer group and ensure the passed argv param matches any one 
-    from file.
+    Load the primer group and ensure that every passed primer groups match
+    one from file.
     """
-    [path, primerGroup] = argv
-    with open('primers.json') as all_primers_file:
-        all_primers = json.load(all_primers_file)
-        for group in all_primers['primer_groups']:
-            if group["name"] == primerGroup:
-                return calculate_primer_distribution(path, PrimerGroup(group))
-        return "Please select one of the primer groups defined in primers.json"
+    if len(argv) != 2:
+        print "Usage: primer_analysis.py <primerPath.json> <myRead.fastq>"
+        return
+
+    [path, primers_path] = argv
+    print "#"*80
+    print "Primer analysis version 0.0.1"
+    print "\t", 'File:', path
+    print "\t", 'Primers:', primers_path
+    with open(primers_path) as all_primers_file:
+        try:
+            primers_json = json.load(all_primers_file)['primer_groups']
+        except Exception, e:
+            print "Failed to parse JSON file. Ensure it is formatted correctly."
+            return
+        
+        primer_groups = [PrimerGroup(group) for group in primers_json]
+        primer_count = dict()
+        # Iterate all sequences and see if the match to the primer group.
+        # If they do, record which forward primer.
+        total = 0
+        matches = 0
+        for _, seq, _ in FastqGeneralIterator(open(path)):
+            total += 1
+            if process_seq(seq, primer_groups, primer_count):
+                matches += 1
+            
+        return output(primer_count, total, matches)
 
 if __name__ == "__main__":
-    print main(sys.argv[1:])
+    main(sys.argv[1:])

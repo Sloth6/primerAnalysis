@@ -1,5 +1,5 @@
 import json
-import primer_analysis
+import primer_analysis as pa
 
 forwards = ["AAAAAA", "TTTTTT", "GGGGGG", "AYAAYA"]
 reverse = "CCGGGAA"
@@ -22,16 +22,18 @@ sequences = [
 
 def test_process_seq():
 	with open('test_primers.json') as primers_file:
-		primerJSON = json.load(primers_file)["primer_groups"][0]
-		primerGroup = primer_analysis.PrimerGroup(primerJSON)
-		primerCount = dict()
+		primers_json = json.load(primers_file)["primer_groups"]
+		primer_groups = [pa.PrimerGroup(group) for group in primers_json]
+		primer_count = dict()
+		total = 0
 		for seq in sequences:
-			primer_analysis.process_seq(seq, primerGroup, primerCount)
-		print primerCount
-		assert(primerCount[forwards[0]] == 1)
-		assert(primerCount[forwards[1]] == 1)
-		assert(primerCount[forwards[2]] == 1)
-		# assert(primerCount[forwards[3]] == 4)
+			total += 1
+			pa.process_seq(seq, primer_groups, primer_count)
+		print pa.output(primer_count, total, total-1)
+		# assert(primer_count[forwards[0]] == 1)
+		# assert(primer_count[forwards[1]] == 1)
+		# assert(primer_count[forwards[2]] == 1)
+		# assert(primer_count[forwards[3]] == 4)
 
 if __name__ == "__main__":
     test_process_seq()

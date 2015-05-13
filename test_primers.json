@@ -1,11 +1,15 @@
 {
 	"author" : "Joel Simon",
+	"description": "Fake sample primers",
 	"primer_groups" : [
 		{
-			"name" : "test_primers",
-			"forwards" : [
-				["AAAAAA", 1], ["TTTTTT", 1], ["GGGGGG", 1]
-			],
+			"name" : "test_primers_a",
+			"forwards" : ["AAAAAA", "TTTTTT", "GGGGGG"],
+			"reverses" : ["TTCCCGG"]
+		},
+		{
+			"name" : "test_primers_b",
+			"forwards" : ["AYAAYA"],
 			"reverses" : ["TTCCCGG"]
 		}
 	]
