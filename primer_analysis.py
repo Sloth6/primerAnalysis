@@ -120,10 +120,14 @@ def main(argv):
         return
 
     [path, primers_path] = argv
+
     print "#"*80
     print "Primer analysis version 0.0.1"
     print "\t", 'File:', path
     print "\t", 'Primers:', primers_path
+
+
+
     with open(primers_path) as all_primers_file:
         try:
             primers_json = json.load(all_primers_file)['primer_groups']
@@ -139,6 +143,8 @@ def main(argv):
         matches = 0
         for _, seq, _ in FastqGeneralIterator(open(path)):
             total += 1
+            if total % 50000 == 0:
+                print total
             if process_seq(seq, primer_groups, primer_count):
                 matches += 1
             
