@@ -51,8 +51,8 @@ class PrimerGroup(object):
                 if nt in nt_map:
                     had_degen = True
                     for map_to in nt_map[nt]:
-                        raw_primer[0] = raw_primer[0].replace(nt, map_to, 1)
-                        raw_primers.append(raw_primer)
+                        toAdd = [raw_primer[0].replace(nt, map_to, 1),raw_primer[1]]
+                        raw_primers.append(toAdd)
                     break
             if not had_degen:
                 primers.append(Primer(raw_primer[0], raw_primer[1], reverse))
