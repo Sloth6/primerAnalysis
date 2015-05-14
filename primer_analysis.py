@@ -100,13 +100,17 @@ def process_seq(seq, primer_groups, primer_count):
 
 
 def output(primer_count, total, matches):
+    def format_fraction(num, denom):
+        return "{0:.1f}%".format(float(num)/denom * 100)
+        
     print 'Total reads:', total
-    print "Reads with primers:", matches, "("+str(matches/float(total))+")"
+    print "Reads with primers:", str(matches)+',',  format_fraction(matches, total)
     print ""
-    for name, values in primer_count.iteritems():
-        print name
-        for forward, count in values.iteritems():
-            print '\t', forward, ':', count
+    for name, primers in primer_count.iteritems():
+        group_sum = sum(primers.values())
+        print name+':', str(sum(primers.values()))+',', format_fraction(group_sum, total), "of total"
+        for forward, count in primers.iteritems():
+            print '\t', forward+':', str(count)+',', format_fraction(count, group_sum), "of group."
         print ''
     print "#"*80
 
@@ -143,8 +147,8 @@ def main(argv):
         matches = 0
         for _, seq, _ in FastqGeneralIterator(open(path)):
             total += 1
-            if total % 50000 == 0:
-                print total
+            # if total % 50000 == 0:
+            #     print total
             if process_seq(seq, primer_groups, primer_count):
                 matches += 1
             
