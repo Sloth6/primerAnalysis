@@ -123,7 +123,7 @@ def main(argv):
         print "Usage: primer_analysis.py <primerPath.json> <myRead.fastq>"
         return
 
-    [path, primers_path] = argv
+    [primers_path, path] = argv
 
     print "#"*80
     print "Primer analysis version 0.0.1"
@@ -134,6 +134,7 @@ def main(argv):
 
     with open(primers_path) as all_primers_file:
         try:
+            print all_primers_file
             primers_json = json.load(all_primers_file)['primer_groups']
         except Exception, e:
             print "Failed to parse JSON file. Ensure it is formatted correctly."
