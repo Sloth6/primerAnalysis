@@ -4,7 +4,7 @@
 	"primer_groups" : [
 		{
 			"name" : "test_primers_a",
-			"forwards" : ["AAAAAA", "TTTTTT", "GGGGGG"],
+			"forwards" : ["AAAAAA", "TTTTTT", "GGGGGG", "ATATAT"],
 			"reverses" : ["TTCCCGG"]
 		},
 		{

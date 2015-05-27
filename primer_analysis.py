@@ -16,8 +16,9 @@ class PrimerGroup(object):
     of the reverse primers.
     """
     def __init__(self, json_data):
-        self.forwards = self.make_all_primers(json_data["forwards"])
-        self.reverses = self.make_all_primers(json_data["reverses"], True)
+        self.forwards = self.make_all_primers(list(json_data["forwards"]))
+        self.reverses = self.make_all_primers(list(json_data["reverses"]), True)
+        self.counts = dict([(f, 0) for f in self.forwards])
         self.name = json_data["name"]
         self.regex = self.make_regex()
 
@@ -62,54 +63,29 @@ class PrimerGroup(object):
         """
         match = self.regex.match(seq)
         if match:
-            return match.group(1)
+            forward = match.group(1)
+            self.counts[forward] += 1
+            return True
         else:
             return False
 
-# def encode_protein(seq, forward_primer, reverse_primer):
-#     """
-#     Translate the sequence to protein. Remove segments before and after
-#     the primers. 
-#     """
-#     if forward_primer is None:
-#         return None
-
-#     start = seq.index(forward_primer)
-#     end = seq.index(reverse_primer)+len(reverse_primer)
-#     subseq = seq[start: end]
-#     protein = Seq(subseq, generic_dna).translate(to_stop=True)
-#     return protein
-    # if len(protein) >= 100:
-    #     return protein
-    # else:
-    #     return None
-    # print protein
-
-def process_seq(seq, primer_groups, primer_count):
+def process_seq(seq, primer_groups):
     for p_group in primer_groups:
-        match = p_group.match(seq)
-        if p_group.name not in primer_count:
-            primer_count[p_group.name] = dict()
-        if match:
-            if match in primer_count[p_group.name]:
-                primer_count[p_group.name][match] += 1
-            else:
-                primer_count[p_group.name][match] = 1
-            return True
-    return False
+        p_group.match(seq)
 
-
-def output(primer_count, total, matches):
+def output(primer_groups, total, matches):
     def format_fraction(num, denom):
+        if float(denom) == 0.0:
+            return "0.0"
         return "{0:.1f}%".format(float(num)/denom * 100)
         
     print 'Total reads:', total
-    print "Reads with primers:", str(matches)+',',  format_fraction(matches, total)
+    print "Reads with primers:", str(matches)+',', format_fraction(matches, total)
     print ""
-    for name, primers in primer_count.iteritems():
-        group_sum = sum(primers.values())
-        print name+':', str(sum(primers.values()))+',', format_fraction(group_sum, total), "of total"
-        for forward, count in primers.iteritems():
+    for group in primer_groups:
+        group_sum = sum(group.counts.values())
+        print group.name+':', str(group_sum)+',', format_fraction(group_sum, total), "of total"
+        for forward, count in group.counts.iteritems():
             print '\t', forward+':', str(count)+',', format_fraction(count, group_sum), "of group."
         print ''
     print "#"*80
@@ -130,30 +106,24 @@ def main(argv):
     print "\t", 'File:', path
     print "\t", 'Primers:', primers_path
 
-
-
     with open(primers_path) as all_primers_file:
         try:
-            print all_primers_file
             primers_json = json.load(all_primers_file)['primer_groups']
         except Exception, e:
             print "Failed to parse JSON file. Ensure it is formatted correctly."
             return
-        
+        print primers_json
         primer_groups = [PrimerGroup(group) for group in primers_json]
-        primer_count = dict()
         # Iterate all sequences and see if the match to the primer group.
         # If they do, record which forward primer.
         total = 0
         matches = 0
         for _, seq, _ in FastqGeneralIterator(open(path)):
             total += 1
-            # if total % 50000 == 0:
-            #     print total
             if process_seq(seq, primer_groups, primer_count):
                 matches += 1
             
-        return output(primer_count, total, matches)
+        return output(primer_groups, total, matches)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

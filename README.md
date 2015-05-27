@@ -18,7 +18,6 @@ Primer analysis version 0.0.1
 Total reads: 10
 Reads with primers: 9 (0.9)
 
-
 test_primers_b
 	ACAACA : 1
 	ACAATA : 1

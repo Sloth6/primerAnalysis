@@ -1,39 +1,36 @@
 import json
 import primer_analysis as pa
 
-forwards = ["AAAAAA", "TTTTTT", "GGGGGG", "AYAAYA"]
-reverse = "CCGGGAA"
-noise = "ATCGATCG"
-
-sequences = [
-	noise+noise, #no match
-	noise+reverse+noise, #reverse, no forward
-	noise+forwards[0]+noise, #forward, no reverse
-	noise+forwards[0]+noise+reverse+noise, #should match AAAAAA
-	noise+forwards[1]+noise+reverse+noise, #should match TTTTTT
-	noise+forwards[2]+noise+reverse+noise, #should match GGGGGG
-	
-	# Test degenerate primer for all combinations. Should match each one. 
-	noise+"ACAACA"+noise+reverse+noise,
-	noise+"ACAATA"+noise+reverse+noise,
-	noise+"ATAACA"+noise+reverse+noise,
-	noise+"ATAATA"+noise+reverse+noise,
-]
-
 def test_process_seq():
-	with open('test_primers.json') as primers_file:
+	with open('./test_primers.json') as primers_file:
 		primers_json = json.load(primers_file)["primer_groups"]
 		primer_groups = [pa.PrimerGroup(group) for group in primers_json]
-		primer_count = dict()
+
+		noise = ''#"ATCGATCGTTGAC"
+		test_sequences = [
+			noise+noise, #no match
+			noise+primers_json[0]["reverses"][0]+noise, #reverse, no forward
+			noise+primers_json[0]["forwards"][0]+noise, #forward, no reverse
+
+			noise+primers_json[0]["forwards"][0]+noise+"CCGGGAA"+noise,
+			noise+primers_json[0]["forwards"][1]+noise+"CCGGGAA"+noise,
+			noise+primers_json[0]["forwards"][2]+noise+"CCGGGAA"+noise,
+
+			# Test degenerate primer for all combinations. Should match each one. 
+			noise+"ACAACA"+noise+"CCGGGAA"+noise,
+			noise+"ACAATA"+noise+"CCGGGAA"+noise,
+			noise+"ATAACA"+noise+"CCGGGAA"+noise,
+			noise+"ATAATA"+noise+"CCGGGAA"+noise,
+		]
+		
 		total = 0
-		for seq in sequences:
+		for seq in test_sequences:
 			total += 1
-			pa.process_seq(seq, primer_groups, primer_count)
-		print pa.output(primer_count, total, total-1)
-		# assert(primer_count[forwards[0]] == 1)
-		# assert(primer_count[forwards[1]] == 1)
-		# assert(primer_count[forwards[2]] == 1)
-		# assert(primer_count[forwards[3]] == 4)
+			pa.process_seq(seq, primer_groups)
+		# assert(primer_groups[0].counts[forwards[0]] == 1)
+		# assert(primer_groups[0].counts[forwards[1]] == 1)
+		# assert(primer_groups[0].counts[forwards[2]] == 1)
+		# assert(primer_groups[0].counts[forwards[3]] == 0)
 
 if __name__ == "__main__":
     test_process_seq()
