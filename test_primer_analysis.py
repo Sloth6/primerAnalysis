@@ -24,9 +24,12 @@ def test_process_seq():
 		]
 		
 		total = 0
+		matches = 0
 		for seq in test_sequences:
 			total += 1
-			pa.process_seq(seq, primer_groups)
+			if pa.process_seq(seq, primer_groups):
+				matches += 1
+		pa.output(primer_groups, total, matches)
 		# assert(primer_groups[0].counts[forwards[0]] == 1)
 		# assert(primer_groups[0].counts[forwards[1]] == 1)
 		# assert(primer_groups[0].counts[forwards[2]] == 1)

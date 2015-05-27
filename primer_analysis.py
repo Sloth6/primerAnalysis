@@ -8,6 +8,7 @@ import re, json, sys
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from Bio.Alphabet import generic_dna
 from Bio.Seq import Seq
+from prettytable import PrettyTable
 
 class PrimerGroup(object):
     """
@@ -71,7 +72,10 @@ class PrimerGroup(object):
 
 def process_seq(seq, primer_groups):
     for p_group in primer_groups:
-        p_group.match(seq)
+        match = p_group.match(seq)
+        if match:
+            return True
+    return False
 
 def output(primer_groups, total, matches):
     def format_fraction(num, denom):
@@ -79,15 +83,24 @@ def output(primer_groups, total, matches):
             return "0.0"
         return "{0:.1f}%".format(float(num)/denom * 100)
         
-    print 'Total reads:', total
-    print "Reads with primers:", str(matches)+',', format_fraction(matches, total)
+    print 'Total reads: \t', total
+    print '\t'.join(map(str,["Reads with primers:", matches, format_fraction(matches, total)]))
     print ""
+    groups_table = PrettyTable(["Group name", "Count", "Percentage of Total"])
     for group in primer_groups:
         group_sum = sum(group.counts.values())
-        print group.name+':', str(group_sum)+',', format_fraction(group_sum, total), "of total"
+        groups_table.add_row([group.name, group_sum, format_fraction(group_sum, total)])
+    print groups_table
+    print ''
+
+    for group in primer_groups:
+        x = PrettyTable(["Forward", "Count", "Percentage of Group"])
         for forward, count in group.counts.iteritems():
-            print '\t', forward+':', str(count)+',', format_fraction(count, group_sum), "of group."
+            x.add_row([forward, count, format_fraction(count, group_sum)])
+        print group.name
+        print x
         print ''
+        
     print "#"*80
 
 def main(argv):
@@ -112,7 +125,6 @@ def main(argv):
         except Exception, e:
             print "Failed to parse JSON file. Ensure it is formatted correctly."
             return
-        print primers_json
         primer_groups = [PrimerGroup(group) for group in primers_json]
         # Iterate all sequences and see if the match to the primer group.
         # If they do, record which forward primer.
@@ -120,7 +132,7 @@ def main(argv):
         matches = 0
         for _, seq, _ in FastqGeneralIterator(open(path)):
             total += 1
-            if process_seq(seq, primer_groups, primer_count):
+            if process_seq(seq, primer_groups):
                 matches += 1
             
         return output(primer_groups, total, matches)
