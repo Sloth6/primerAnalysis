@@ -20,6 +20,7 @@ class PrimerGroup(object):
         self.forwards = self.make_all_primers(list(json_data["forwards"]))
         self.reverses = self.make_all_primers(list(json_data["reverses"]), True)
         self.counts = dict([(f, 0) for f in self.forwards])
+        self.uniques = dict([(f, set()) for f in self.forwards])
         self.name = json_data["name"]
         self.regex = self.make_regex()
 
@@ -66,6 +67,7 @@ class PrimerGroup(object):
         if match:
             forward = match.group(1)
             self.counts[forward] += 1
+            self.uniques[forward].add(seq)
             return True
         else:
             return False
@@ -86,17 +88,21 @@ def output(primer_groups, total, matches):
     print 'Total reads: \t', total
     print '\t'.join(map(str,["Reads with primers:", matches, format_fraction(matches, total)]))
     print ""
-    groups_table = PrettyTable(["Group name", "Count", "Percentage of Total"])
+    groups_table = PrettyTable(["Group name", "Total", "Uniques", "Percentage of Total"])
     for group in primer_groups:
         group_sum = sum(group.counts.values())
-        groups_table.add_row([group.name, group_sum, format_fraction(group_sum, total)])
+        group_uniques = sum(map(len, group.uniques.values()))
+        groups_table.add_row([group.name, group_sum, group_uniques, format_fraction(group_sum, total)])
     print groups_table
     print ''
 
     for group in primer_groups:
-        x = PrettyTable(["Forward", "Count", "Percentage of Group"])
-        for forward, count in group.counts.iteritems():
-            x.add_row([forward, count, format_fraction(count, group_sum)])
+        x = PrettyTable(["Forward", "Total", "Uniques"])
+        for forward in group.forwards:
+            count = group.counts[forward]
+            uniques = len(group.uniques[forward])
+            #, format_fraction(count, group_sum)
+            x.add_row([forward, count, uniques])
         print group.name
         print x
         print ''
